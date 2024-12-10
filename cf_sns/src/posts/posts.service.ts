@@ -74,7 +74,7 @@ export class PostsService {
   }
 
   async createPost(author: string, title: string, content: string) {
-    // 1) create -> 저자아할 객체를 생성한다.
+    // 1) create -> 저장할 객체를 생성한다.
     // 2) save -> 객체를 저장한다. (create 메서드에서 생성한 객체로)
 
     const post = this.postsRepository.create({
