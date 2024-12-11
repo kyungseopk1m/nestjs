@@ -2,7 +2,20 @@ import { Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Role, UserModel } from './entity/user.entity';
-import { Between, Equal, ILike, In, IsNull, LessThan, LessThanOrEqual, Like, MoreThan, MoreThanOrEqual, Not, Repository } from 'typeorm';
+import {
+  Between,
+  Equal,
+  ILike,
+  In,
+  IsNull,
+  LessThan,
+  LessThanOrEqual,
+  Like,
+  MoreThan,
+  MoreThanOrEqual,
+  Not,
+  Repository,
+} from 'typeorm';
 import { ProfileModel } from './entity/profile..entity';
 import { PostModel } from './entity/post.entity';
 import { TagModel } from './entity/tag.entity';
@@ -18,8 +31,8 @@ export class AppController {
     private readonly postRepository: Repository<PostModel>,
     @InjectRepository(TagModel)
     private readonly tagRepository: Repository<TagModel>,
-  ) { }
-  
+  ) {}
+
   @Post('sample')
   async sample() {
     // 모델에 해당되는 객체 생성 - 저장은 안함
@@ -55,7 +68,7 @@ export class AppController {
     // await this.userRepository.decrement({
     //   id: 1,
     // }, 'count', 1);
-    
+
     // 갯수 카운팅하기
     // const count = await this.userRepository.count({
     //   where: {
@@ -96,7 +109,7 @@ export class AppController {
     const usersAndCount = await this.userRepository.findAndCount({
       take: 3,
     });
-    
+
     return usersAndCount;
   }
 
@@ -104,7 +117,7 @@ export class AppController {
   async postUser() {
     for (let i = 0; i < 100; i++) {
       await this.userRepository.save({
-        email: `user-${i}@google.com`
+        email: `user-${i}@google.com`,
       });
     }
   }
@@ -113,7 +126,7 @@ export class AppController {
   getUsers() {
     return this.userRepository.find({
       order: {
-        id: 'ASC'
+        id: 'ASC',
       },
       where: {
         // 아닌 경우 가져오기
@@ -181,15 +194,13 @@ export class AppController {
 
     return this.userRepository.save({
       ...user,
-      email: user.email + '0'
+      email: user.email + '0',
     });
   }
 
   @Delete('user/profile/:id')
-  async deleteProfile(
-    @Param('id') id: string,  
-  ) {
-    await this.profileRepository.delete(+id)
+  async deleteProfile(@Param('id') id: string) {
+    await this.profileRepository.delete(+id);
   }
 
   @Post('user/profile')
@@ -198,7 +209,7 @@ export class AppController {
       email: 'asdf@code.ai',
       profile: {
         profileImg: 'asdf.jpg',
-      }
+      },
     });
 
     // const profile = await this.profileRepository.save({
@@ -231,11 +242,11 @@ export class AppController {
   @Post('posts/tags')
   async createPostsTags() {
     const post1 = await this.postRepository.save({
-      title: 'NestJS Lecture'
+      title: 'NestJS Lecture',
     });
 
     const post2 = await this.postRepository.save({
-      title: 'Programming'
+      title: 'Programming',
     });
 
     const tag1 = await this.tagRepository.save({
@@ -250,7 +261,7 @@ export class AppController {
 
     const post3 = await this.postRepository.save({
       title: 'NextJS Lecture',
-      tags: [tag1, tag2]
+      tags: [tag1, tag2],
     });
 
     return true;
@@ -261,7 +272,7 @@ export class AppController {
     return this.postRepository.find({
       relations: {
         tags: true,
-      }
+      },
     });
   }
 
@@ -270,7 +281,7 @@ export class AppController {
     return this.tagRepository.find({
       relations: {
         posts: true,
-      }
-    })
+      },
+    });
   }
 }
