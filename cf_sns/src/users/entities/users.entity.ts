@@ -1,6 +1,14 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { RolesEnum } from '../const/roles.const';
 import { PostsModel } from 'src/posts/entities/posts.entity';
+import { BaseModel } from 'src/common/entity/base.entity';
 
 /**
  *  id: number
@@ -14,10 +22,7 @@ import { PostsModel } from 'src/posts/entities/posts.entity';
  *  role: [RolesEnum.USER, RolesEnum.ADMIN]
  *  */
 @Entity()
-export class UsersModel {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class UsersModel extends BaseModel {
   @Column({
     // 1)
     length: 20,
