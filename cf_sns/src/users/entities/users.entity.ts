@@ -18,6 +18,7 @@ import {
 import { lengthValidationMessage } from 'src/common/validation-message/length-validation.message';
 import { stringValidationMessage } from 'src/common/validation-message/string-validation.message';
 import { emailValidationMessage } from 'src/common/validation-message/email-validation.message';
+import { Exclude } from 'class-transformer';
 
 /**
  *  id: number
@@ -70,6 +71,20 @@ export class UsersModel extends BaseModel {
   @Length(3, 8, {
     message: lengthValidationMessage,
   })
+  /**
+   * frontend -> backend
+   * plain object (JSON) -> class instance (dto)
+   *
+   * Response
+   * backend -> frontend
+   * class instance (dto) -> plain object (JSON)
+   *
+   * toClassOnly -> class instance 변환될때만
+   * toPlainOnly -> plain object로 변환될때만
+   */
+  // @Exclude({
+  //   toPlainOnly: true,
+  // })
   password: string;
 
   @Column({
