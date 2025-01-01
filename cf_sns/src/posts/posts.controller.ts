@@ -14,6 +14,8 @@ import {
   Query,
   UseInterceptors,
   UploadedFile,
+  InternalServerErrorException,
+  UseFilters,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { AccessTokenGuard } from 'src/auth/guard/bearer-token.guard';
@@ -23,14 +25,27 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PaginatePostDto } from './dto/paginate-post.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ImageModelType } from 'src/common/entity/image.entity';
+import { DataSource, QueryRunner as QR } from 'typeorm';
+import { PostsImagesService } from './image/images.service';
+import { LogInterceptor } from 'src/common/interceptor/log.interceptor';
+import { TransactionInterceptor } from 'src/common/interceptor/transaction.interceptor';
+import { QueryRunner } from 'src/common/decorator/query-runner.decorator';
+import { HttpExceptionFilter } from 'src/common/exception-filter/http.exception-filter';
 
 @Controller('posts')
 export class PostsController {
-  constructor(private readonly postsService: PostsService) {}
+  constructor(
+    private readonly postsService: PostsService,
+    private readonly postsImagesService: PostsImagesService,
+    private readonly dataSource: DataSource,
+  ) {}
 
   // 1) GET /posts
   // 모든 post를 다 가져온다.
   @Get()
+  @UseInterceptors(LogInterceptor)
+  // @UseFilters(HttpExceptionFilter)
   getPosts(@Query() query: PaginatePostDto) {
     return this.postsService.paginatePosts(query);
   }
@@ -56,17 +71,43 @@ export class PostsController {
   // post를 생성한다.
   //
   // DTO - Data Transfer Object
+  //
+  // A Model, B Model
+  // Post API -> A 모델을 저장하고, B 모델을 저장한다.
+  // await repository.save(a);
+  // await repository.save(b);
+  //
+  // 만약에 a를 저장하다가 실패하면 b를 저장하면 안될 경우
+  // all or nothing
+  //
+  // transaction
+  // start -> 시작
+  // commit -> 저장
+  // rollback -> 원상복구
   @Post()
+  @UseInterceptors(TransactionInterceptor)
   @UseGuards(AccessTokenGuard)
-  @UseInterceptors(FileInterceptor('image'))
-  postPosts(
+  async postPosts(
     @User('id') userId: number,
     @Body() body: CreatePostDto,
-    @UploadedFile() file?: Express.Multer.File,
-    // @Body('title') title: string,
-    // @Body('content') content: string,
+    @QueryRunner() qr: QR,
   ) {
-    return this.postsService.createPost(userId, body, file?.filename);
+    // 로직 실행
+    const post = await this.postsService.createPost(userId, body, qr);
+
+    for (let i = 0; i < body.images.length; i++) {
+      await this.postsImagesService.createPostImage(
+        {
+          post,
+          order: i,
+          path: body.images[i],
+          type: ImageModelType.POST_IMAGE,
+        },
+        qr,
+      );
+    }
+
+    return this.postsService.getPostById(post.id, qr);
   }
 
   // 4) PATCH /posts/:id

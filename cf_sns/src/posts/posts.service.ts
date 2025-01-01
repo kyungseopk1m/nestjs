@@ -1,5 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { FindOptionsWhere, LessThan, MoreThan, Repository } from 'typeorm';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  FindOptionsWhere,
+  LessThan,
+  MoreThan,
+  QueryRunner,
+  Repository,
+} from 'typeorm';
 import { PostsModel } from './entities/posts.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -9,64 +19,26 @@ import { CommonService } from 'src/common/common.service';
 import { ENV_PROTOCOL_KEY } from 'src/common/const/env-keys.const';
 import { ENV_HOST_KEY } from 'src/common/const/env-keys.const';
 import { ConfigService } from '@nestjs/config';
-
-/**
- * author: string;
- * title: string;
- * content: string;
- * likeCount: number;
- * commentCount: number;
- */
-
-export interface PostModel {
-  id: number;
-  author: string;
-  title: string;
-  content: string;
-  likeCount: number;
-  commentCount: number;
-}
-
-// const posts: PostModel[] = [
-//   {
-//     id: 1,
-//     author: 'newjeans_official',
-//     title: '뉴진스 민지',
-//     content: '하이',
-//     likeCount: 100,
-//     commentCount: 20,
-//   },
-//   {
-//     id: 2,
-//     author: 'newjeans_official',
-//     title: '뉴진스 혜린',
-//     content: '하이',
-//     likeCount: 100,
-//     commentCount: 20,
-//   },
-//   {
-//     id: 3,
-//     author: 'blackpink_official',
-//     title: '블랙핑크 지수',
-//     content: '하이',
-//     likeCount: 100,
-//     commentCount: 20,
-//   },
-// ];
+import { basename, join } from 'path';
+import { POST_IMAGE_PATH, TEMP_FOLTER_PATH } from 'src/common/const/path.const';
+import { promises } from 'fs';
+import { CreatePostImageDto } from './image/dto/create-image.dto';
+import { ImageModel } from 'src/common/entity/image.entity';
+import { DEFAULT_POST_FIND_OPTIONS } from './const/default-post-find-options.const';
 
 @Injectable()
 export class PostsService {
   constructor(
     @InjectRepository(PostsModel)
     private readonly postsRepository: Repository<PostsModel>,
+    @InjectRepository(ImageModel)
+    private readonly imageRepository: Repository<ImageModel>,
     private readonly commonService: CommonService,
     private readonly configService: ConfigService,
   ) {}
 
   async getAllPosts() {
-    return this.postsRepository.find({
-      relations: ['author'],
-    });
+    return this.postsRepository.find(DEFAULT_POST_FIND_OPTIONS);
   }
 
   async generatePosts(userId: number) {
@@ -74,6 +46,7 @@ export class PostsService {
       await this.createPost(userId, {
         title: `임의로 생성된 포스트 제목 ${i}`,
         content: `임의로 생성된 포스트 내용 ${i}`,
+        images: [],
       });
     }
   }
@@ -84,7 +57,7 @@ export class PostsService {
       dto,
       this.postsRepository,
       {
-        relations: ['author'],
+        ...DEFAULT_POST_FIND_OPTIONS,
       },
       'posts',
     );
@@ -197,12 +170,14 @@ export class PostsService {
     };
   }
 
-  async getPostById(id: number) {
-    const post = await this.postsRepository.findOne({
+  async getPostById(id: number, qr?: QueryRunner) {
+    const repository = this.getRepository(qr);
+
+    const post = await repository.findOne({
+      ...DEFAULT_POST_FIND_OPTIONS,
       where: {
         id,
       },
-      relations: ['author'],
     });
 
     if (!post) {
@@ -212,21 +187,28 @@ export class PostsService {
     return post;
   }
 
-  async createPost(authorId: number, postDto: CreatePostDto, image?: string) {
+  getRepository(qr?: QueryRunner) {
+    return qr
+      ? qr.manager.getRepository<PostsModel>(PostsModel)
+      : this.postsRepository;
+  }
+
+  async createPost(authorId: number, postDto: CreatePostDto, qr?: QueryRunner) {
     // 1) create -> 저장할 객체를 생성한다.
     // 2) save -> 객체를 저장한다. (create 메서드에서 생성한 객체로)
+    const repository = this.getRepository(qr);
 
-    const post = this.postsRepository.create({
+    const post = repository.create({
       author: {
         id: authorId,
       },
       ...postDto,
-      image,
+      images: [],
       likeCount: 0,
       commentCount: 0,
     });
 
-    const newPost = await this.postsRepository.save(post);
+    const newPost = await repository.save(post);
 
     return newPost;
   }
@@ -238,6 +220,7 @@ export class PostsService {
     // 2) 만약에 데이터가 존재한다면 (같은 id의 값이 존재한다면) 존재하던 값을 업데이트한다.
 
     const post = await this.postsRepository.findOne({
+      ...DEFAULT_POST_FIND_OPTIONS,
       where: {
         id: postId,
       },
